@@ -97,6 +97,35 @@ static int VP8LSetError(VP8LDecoder* const dec, VP8StatusCode error) {
   return 0;
 }
 
+// Returns non-zero if at least 'nbits' unconsumed bits remain in the reader.
+// This only inspects the reader state and never consumes any bit, so callers
+// can validate a fixed-width field's length *before* reading it and reject a
+// truncated stream at the parameter boundary instead of carrying unverified
+// values into deeper decoding stages. 'nbits' is expected to be a small
+// fixed-width field (<= VP8L_MAX_NUM_BIT_READ).
+static int VP8LHasEnoughBits(const VP8LBitReader* const br, int nbits) {
+  int64_t bits_served;
+  int64_t remaining;
+  if (br->eos) return 0;
+  // VP8LInitBitReader() prefetches up to sizeof(br->val) (8) bytes into the
+  // 64-bit window. Two regimes follow:
+  //  * A buffer of <= 8 bytes is fully prefetched: pos stays equal to len and
+  //    never advances, so the number of bits already served is simply bit_pos.
+  //  * For a larger buffer, ShiftBytes() pulls fresh bytes (pos grows) while
+  //    bit_pos stays under VP8L_LBITS; served bits are then
+  //    8 * pos + bit_pos - VP8L_LBITS.
+  if ((int64_t)br->len <= (int64_t)sizeof(br->val)) {
+    bits_served = br->bit_pos;
+  } else {
+    bits_served =
+        (int64_t)8 * (int64_t)br->pos + br->bit_pos - VP8L_LBITS;
+    if (bits_served < 0) bits_served = 0;
+  }
+  remaining = (int64_t)8 * (int64_t)br->len - bits_served;
+  if (remaining < 0) remaining = 0;
+  return (int64_t)nbits <= remaining;
+}
+
 WEBP_NODISCARD static int DecodeImageStream(int xsize, int ysize, int is_level0,
                                             VP8LDecoder* const dec,
                                             uint32_t** const decoded_data);
@@ -1598,7 +1627,14 @@ WEBP_NODISCARD static int DecodeImageData(VP8LDecoder* const dec,
                      &src_last);
     } else if (code < color_cache_limit) {  // Color cache
       const int key = code - len_code_limit;
-      assert(color_cache != NULL);
+      // Runtime defense in depth: the key must index inside the declared color
+      // cache table. The header validation should already guarantee this, but
+      // never rely solely on the assert inside VP8LColorCacheLookup() (which is
+      // compiled out in NDEBUG builds).
+      if (color_cache == NULL || key < 0 ||
+          (uint32_t)key >= (uint32_t)hdr->color_cache_size) {
+        goto Error;
+      }
       if (VP8LIsEndOfStream(br)) break;
       VP8LColorCacheInsert(color_cache, last_cached, src);
       last_cached = src;
@@ -1687,15 +1723,30 @@ WEBP_NODISCARD static int ReadTransform(int* const xsize, int ysize,
                                         VP8LDecoder* const dec) {
   int ok = 1;
   VP8LBitReader* const br = &dec->br;
-  VP8LTransform* transform = &dec->transforms[dec->next_transform];
-  const VP8LImageTransformType type =
-      (VP8LImageTransformType)VP8LReadBits(br, 2);
+  VP8LTransform* transform;
+  VP8LImageTransformType type;
+
+  // Validate the fixed-width transform type field before consuming it, so a
+  // truncated stream is rejected at this boundary rather than acted upon.
+  if (!VP8LHasEnoughBits(br, 2)) {
+    return VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+  }
+  type = (VP8LImageTransformType)VP8LReadBits(br, 2);
+  if (br->eos || type < PREDICTOR_TRANSFORM || type > COLOR_INDEXING_TRANSFORM) {
+    return VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+  }
 
   // Each transform type can only be present once in the stream.
   if (dec->transforms_seen & (1U << type)) {
     return 0;  // Already there, let's not accept the second same transform.
   }
   dec->transforms_seen |= (1U << type);
+
+  // Runtime bound (not just an assert): the fixed-size array must hold it.
+  if (dec->next_transform >= NUM_TRANSFORMS) {
+    return VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+  }
+  transform = &dec->transforms[dec->next_transform];
 
   transform->type = type;
   transform->xsize = *xsize;
@@ -1707,19 +1758,34 @@ WEBP_NODISCARD static int ReadTransform(int* const xsize, int ysize,
   switch (type) {
     case PREDICTOR_TRANSFORM:
     case CROSS_COLOR_TRANSFORM:
+      // Length-check the 3-bit transform parameter before consuming it.
+      if (!VP8LHasEnoughBits(br, NUM_TRANSFORM_BITS)) {
+        return VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+      }
       transform->bits =
           MIN_TRANSFORM_BITS + VP8LReadBits(br, NUM_TRANSFORM_BITS);
+      if (br->eos) {
+        return VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+      }
       ok = DecodeImageStream(
           VP8LSubSampleSize(transform->xsize, transform->bits),
           VP8LSubSampleSize(transform->ysize, transform->bits),
           /*is_level0=*/0, dec, &transform->data);
       break;
     case COLOR_INDEXING_TRANSFORM: {
-      const int num_colors = VP8LReadBits(br, 8) + 1;
-      const int bits = (num_colors > 16)  ? 0
-                       : (num_colors > 4) ? 1
-                       : (num_colors > 2) ? 2
-                                          : 3;
+      int num_colors, bits;
+      // Length-check the 8-bit palette size before consuming it.
+      if (!VP8LHasEnoughBits(br, 8)) {
+        return VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+      }
+      num_colors = VP8LReadBits(br, 8) + 1;
+      if (br->eos) {
+        return VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+      }
+      bits = (num_colors > 16)  ? 0
+           : (num_colors > 4) ? 1
+           : (num_colors > 2) ? 2
+                              : 3;
       *xsize = VP8LSubSampleSize(transform->xsize, bits);
       transform->bits = bits;
       ok = DecodeImageStream(num_colors, /*ysize=*/1, /*is_level0=*/0, dec,
@@ -1730,9 +1796,6 @@ WEBP_NODISCARD static int ReadTransform(int* const xsize, int ysize,
       break;
     }
     case SUBTRACT_GREEN_TRANSFORM:
-      break;
-    default:
-      assert(0);  // can't happen
       break;
   }
 
@@ -1838,18 +1901,41 @@ WEBP_NODISCARD static int DecodeImageStream(int xsize, int ysize, int is_level0,
 
   // Read the transforms (may recurse).
   if (is_level0) {
-    while (ok && VP8LReadBits(br, 1)) {
+    while (ok) {
+      // Length-check the transform-present bit before consuming it: a
+      // truncated stream must not enter ReadTransform() with unverified data.
+      if (!VP8LHasEnoughBits(br, 1)) {
+        ok = VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+        break;
+      }
+      if (!VP8LReadBits(br, 1)) break;
       ok = ReadTransform(&transform_xsize, transform_ysize, dec);
     }
   }
 
   // Color cache
-  if (ok && VP8LReadBits(br, 1)) {
-    color_cache_bits = VP8LReadBits(br, 4);
-    ok = (color_cache_bits >= 1 && color_cache_bits <= MAX_CACHE_BITS);
-    if (!ok) {
-      VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+  if (ok) {
+    // Length-check the color-cache-present bit before consuming it.
+    if (!VP8LHasEnoughBits(br, 1)) {
+      ok = VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
       goto End;
+    }
+    if (VP8LReadBits(br, 1)) {
+      // The 4-bit cache-size field must itself be fully present.
+      if (!VP8LHasEnoughBits(br, 4)) {
+        ok = VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+        goto End;
+      }
+      color_cache_bits = VP8LReadBits(br, 4);
+      // Keep the declared cache size consistent with every possible index:
+      // only values in [1, MAX_CACHE_BITS] map to a valid color cache table.
+      // Reject out-of-range declarations before any Huffman table or cache
+      // allocation consumes further (unverified) bitstream data.
+      ok = (color_cache_bits >= 1 && color_cache_bits <= MAX_CACHE_BITS);
+      if (!ok) {
+        VP8LSetError(dec, VP8_STATUS_BITSTREAM_ERROR);
+        goto End;
+      }
     }
   }
 
