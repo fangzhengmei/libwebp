@@ -42,6 +42,9 @@ option(WEBP_BUILD_WEBPMUX "Build the webpmux command line tool." ON)
 option(WEBP_BUILD_EXTRAS "Build extras." ON)
 option(WEBP_BUILD_WEBP_JS "Emscripten build of webp.js." OFF)
 option(WEBP_BUILD_FUZZTEST "Build the fuzztest tests." OFF)
+option(
+  WEBP_BUILD_VP8L_BOUNDS_TEST
+  "Build the standalone VP8L bitstream boundary regression test." OFF)
 option(WEBP_USE_THREAD "Enable threading support" ON)
 option(WEBP_NEAR_LOSSLESS "Enable near-lossless encoding" ON)
 option(WEBP_ENABLE_SWAP_16BIT_CSP "Enable byte swap for 16 bit colorspaces."
@@ -798,6 +801,11 @@ endif()
 
 if(WEBP_BUILD_FUZZTEST)
   add_subdirectory(tests/fuzzer)
+endif()
+
+if(WEBP_BUILD_VP8L_BOUNDS_TEST)
+  enable_testing()
+  add_subdirectory(tests)
 endif()
 
 # Install the different headers and libraries.
