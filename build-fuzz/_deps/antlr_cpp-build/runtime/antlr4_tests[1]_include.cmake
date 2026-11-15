@@ -1,0 +1,5 @@
+if(EXISTS "/srv/fb2/fangzhengmei/0064-libwebp-8-d6999d5b/build-fuzz/_deps/antlr_cpp-build/runtime/antlr4_tests[1]_tests.cmake")
+  include("/srv/fb2/fangzhengmei/0064-libwebp-8-d6999d5b/build-fuzz/_deps/antlr_cpp-build/runtime/antlr4_tests[1]_tests.cmake")
+else()
+  add_test(antlr4_tests_NOT_BUILT antlr4_tests_NOT_BUILT)
+endif()

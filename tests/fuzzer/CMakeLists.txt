@@ -74,6 +74,7 @@ if(WEBP_BUILD_LIBWEBPMUX)
   add_webp_fuzztest(animencoder_fuzzer)
   target_sources(animencoder_fuzzer PRIVATE ${WEBP_MUX_SRCS})
   add_webp_fuzztest(mux_demux_api_fuzzer libwebpmux webpdemux)
+  add_webp_fuzztest(metadata_api_fuzzer libwebpmux webpdemux)
 endif()
 
 if(WEBP_BUILD_WEBPINFO)

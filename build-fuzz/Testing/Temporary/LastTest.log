@@ -1,0 +1,92 @@
+Start testing: Nov 15 01:44 UTC
+----------------------------------------------------------
+13/16 Testing: mux_demux_api_fuzzer
+13/16 Test: mux_demux_api_fuzzer
+Command: "/srv/fb2/fangzhengmei/0064-libwebp-8-d6999d5b/build-fuzz/tests/fuzzer/mux_demux_api_fuzzer"
+Directory: /srv/fb2/fangzhengmei/0064-libwebp-8-d6999d5b/build-fuzz/tests/fuzzer
+"mux_demux_api_fuzzer" start time: Nov 15 01:44 UTC
+Output:
+----------------------------------------------------------
+[==========] Running 3 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 3 tests from MuxDemuxApi
+[ RUN      ] MuxDemuxApi.MuxDemuxApiTest
+FUZZTEST_PRNG_SEED=11gUYEFc--HJOAOtaEfWhPI8i9pDbxsa49-8YcNEqaM
+[       OK ] MuxDemuxApi.MuxDemuxApiTest (1000 ms)
+[ RUN      ] MuxDemuxApi.MuxEditApiTest
+FUZZTEST_PRNG_SEED=wJrXtLwZWbC225TM65IpgQIxtvvcsVXn4APE1r1XV9E
+[       OK ] MuxDemuxApi.MuxEditApiTest (1000 ms)
+[ RUN      ] MuxDemuxApi.SetCanvasSizeLargeArea
+[       OK ] MuxDemuxApi.SetCanvasSizeLargeArea (0 ms)
+[----------] 3 tests from MuxDemuxApi (2001 ms total)
+
+[----------] Global test environment tear-down
+[==========] 3 tests from 1 test suite ran. (2001 ms total)
+[  PASSED  ] 3 tests.
+<end of output>
+Test time =   2.02 sec
+----------------------------------------------------------
+Test Passed.
+"mux_demux_api_fuzzer" end time: Nov 15 01:44 UTC
+"mux_demux_api_fuzzer" time elapsed: 00:00:02
+----------------------------------------------------------
+
+14/16 Testing: metadata_api_fuzzer
+14/16 Test: metadata_api_fuzzer
+Command: "/srv/fb2/fangzhengmei/0064-libwebp-8-d6999d5b/build-fuzz/tests/fuzzer/metadata_api_fuzzer"
+Directory: /srv/fb2/fangzhengmei/0064-libwebp-8-d6999d5b/build-fuzz/tests/fuzzer
+"metadata_api_fuzzer" start time: Nov 15 01:44 UTC
+Output:
+----------------------------------------------------------
+[==========] Running 15 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 13 tests from MetadataApiTest
+[ RUN      ] MetadataApiTest.ValidSingleIccpChunk
+[       OK ] MetadataApiTest.ValidSingleIccpChunk (7 ms)
+[ RUN      ] MetadataApiTest.ValidMultipleChunks
+[       OK ] MetadataApiTest.ValidMultipleChunks (0 ms)
+[ RUN      ] MetadataApiTest.ValidOddLengthChunkWithPadding
+[       OK ] MetadataApiTest.ValidOddLengthChunkWithPadding (0 ms)
+[ RUN      ] MetadataApiTest.ValidZeroLengthChunk
+[       OK ] MetadataApiTest.ValidZeroLengthChunk (0 ms)
+[ RUN      ] MetadataApiTest.ValidNoVp8xNoMetadata
+[       OK ] MetadataApiTest.ValidNoVp8xNoMetadata (0 ms)
+[ RUN      ] MetadataApiTest.MuxWriteReadRoundTrip
+[       OK ] MetadataApiTest.MuxWriteReadRoundTrip (0 ms)
+[ RUN      ] MetadataApiTest.ChunkLengthPastEndOfFile
+[       OK ] MetadataApiTest.ChunkLengthPastEndOfFile (0 ms)
+[ RUN      ] MetadataApiTest.ChunkLengthPastEndOfFileInflatedRiff
+[       OK ] MetadataApiTest.ChunkLengthPastEndOfFileInflatedRiff (0 ms)
+[ RUN      ] MetadataApiTest.ChunkSizeExceedsMaxPayload
+[       OK ] MetadataApiTest.ChunkSizeExceedsMaxPayload (0 ms)
+[ RUN      ] MetadataApiTest.DuplicateIccpChunk
+[       OK ] MetadataApiTest.DuplicateIccpChunk (0 ms)
+[ RUN      ] MetadataApiTest.MissingPaddingByte
+[       OK ] MetadataApiTest.MissingPaddingByte (0 ms)
+[ RUN      ] MetadataApiTest.Vp8xFlagSetButChunkMissing
+[       OK ] MetadataApiTest.Vp8xFlagSetButChunkMissing (0 ms)
+[ RUN      ] MetadataApiTest.ChunkPresentButVp8xFlagMissing
+[       OK ] MetadataApiTest.ChunkPresentButVp8xFlagMissing (0 ms)
+[----------] 13 tests from MetadataApiTest (10 ms total)
+
+[----------] 2 tests from MetadataApi
+[ RUN      ] MetadataApi.RoundTripPreservesChunks
+FUZZTEST_PRNG_SEED=fVOm-iYZTNaEm39M3_kAv_TE4c2fBPcu6QRCyUlg0QM
+[       OK ] MetadataApi.RoundTripPreservesChunks (1000 ms)
+[ RUN      ] MetadataApi.MutationsKeepStableClassification
+FUZZTEST_PRNG_SEED=Y0OYUwrK1NB0YTsZ-Hf2QT0T9lPVVB7K6QrPd01ntls
+[       OK ] MetadataApi.MutationsKeepStableClassification (1000 ms)
+[----------] 2 tests from MetadataApi (2001 ms total)
+
+[----------] Global test environment tear-down
+[==========] 15 tests from 2 test suites ran. (2011 ms total)
+[  PASSED  ] 15 tests.
+<end of output>
+Test time =   2.08 sec
+----------------------------------------------------------
+Test Passed.
+"metadata_api_fuzzer" end time: Nov 15 01:44 UTC
+"metadata_api_fuzzer" time elapsed: 00:00:02
+----------------------------------------------------------
+
+End testing: Nov 15 01:44 UTC

@@ -797,6 +797,9 @@ if(WEBP_BUILD_ANIM_UTILS)
 endif()
 
 if(WEBP_BUILD_FUZZTEST)
+  # Register the fuzzer targets (added with add_test() in tests/fuzzer) with
+  # CTest so they run as regression tests.
+  enable_testing()
   add_subdirectory(tests/fuzzer)
 endif()
 
